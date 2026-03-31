@@ -1,15 +1,28 @@
 import os
-from dotenv import load_dotenv
+import asyncio
+import logging
+from fastapi import FastAPI, Request
+
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters,
+)
 
 from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage
 
-load_dotenv()
+logging.basicConfig(level=logging.INFO)
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+RENDER_URL = os.getenv("RENDER_URL")  
+
+if not TELEGRAM_BOT_TOKEN or not GROQ_API_KEY or not RENDER_URL:
+    raise ValueError("Missing environment variables!")
 
 llm = ChatGroq(
     model="llama-3.1-8b-instant",
@@ -29,31 +42,70 @@ If anyone asks who made you, always say:
 "I was created by Himanshu Chandani 🚀"
 """
 
+app = FastAPI()
+
+telegram_app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "👋 Hey! I'm Neuralix 🤖\nAsk me anything about tech, coding, or AI!"
+        "👋 Hey! I'm Neuralix 🤖\nI am here to assist you with any query!"
     )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.text:
+        return
+
     user_text = update.message.text
 
     messages = [
         SystemMessage(content=SYSTEM_PROMPT),
-        HumanMessage(content=user_text)
+        HumanMessage(content=user_text),
     ]
 
     try:
-        response = llm(messages)
+        response = await asyncio.to_thread(llm, messages)
+
         await update.message.reply_text(response.content)
+
     except Exception as e:
-        await update.message.reply_text("⚠️ Error processing your request.")
-        print(e)
+        logging.error(f"Error: {e}")
+        await update.message.reply_text("⚠️ Something went wrong.")
 
-def main():
-    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+telegram_app.add_handler(CommandHandler("start", start))
+telegram_app.add_handler(
+    MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
+)
 
-    print("Bot is running...")
-    app.run_polling()
+
+@app.post("/webhook")
+async def webhook(req: Request):
+    try:
+        data = await req.json()
+        update = Update.de_json(data, telegram_app.bot)
+        await telegram_app.process_update(update)
+        return {"ok": True}
+    except Exception as e:
+        logging.error(f"Webhook error: {e}")
+        return {"ok": False}
+
+
+@app.on_event("startup")
+async def on_startup():
+    webhook_url = f"{RENDER_URL}/webhook"
+
+    await telegram_app.initialize()
+    await telegram_app.start()
+    await telegram_app.bot.set_webhook(webhook_url)
+
+    logging.info(f"Webhook set to: {webhook_url}")
+
+@app.get("/")
+async def root():
+    return {"status": "Neuralix is running 🚀"}
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    await telegram_app.stop()
+    await telegram_app.shutdown()
