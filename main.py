@@ -64,13 +64,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
 
     try:
-        response = await asyncio.to_thread(llm, messages)
+        response = await asyncio.to_thread(llm.invoke, messages)
 
         await update.message.reply_text(response.content)
 
     except Exception as e:
         logging.error(f"Error: {e}")
-        await update.message.reply_text(e)
+        await update.message.reply_text("⚠️ Something went wrong.")
 
 
 telegram_app.add_handler(CommandHandler("start", start))
