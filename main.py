@@ -81,14 +81,14 @@ telegram_app.add_handler(
 
 @app.post("/webhook")
 async def webhook(req: Request):
-    try:
-        data = await req.json()
-        update = Update.de_json(data, telegram_app.bot)
-        await telegram_app.process_update(update)
-        return {"ok": True}
-    except Exception as e:
-        logging.error(f"Webhook error: {e}")
-        return {"ok": False}
+    print("🔥 HIT WEBHOOK")
+    data = await req.json()
+    print(data)
+
+    update = Update.de_json(data, telegram_app.bot)
+    await telegram_app.process_update(update)
+
+    return {"ok": True}
 
 
 @app.on_event("startup")
