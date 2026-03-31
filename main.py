@@ -70,7 +70,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         logging.error(f"Error: {e}")
-        await update.message.reply_text("⚠️ Something went wrong.")
+        await update.message.reply_text(e)
 
 
 telegram_app.add_handler(CommandHandler("start", start))
