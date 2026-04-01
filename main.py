@@ -11,6 +11,7 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
+from telegram.constants import ChatAction
 
 from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -46,6 +47,13 @@ app = FastAPI()
 
 telegram_app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
+async def show_typing(chat):
+    try:
+        while True:
+            await chat.send_action(action=ChatAction.TYPING)
+            await asyncio.sleep(4)
+    except asyncio.CancelledError:
+        pass
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -63,21 +71,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         HumanMessage(content=user_text),
     ]
 
+    typing_task = asyncio.create_task(show_typing(update.message.chat))
+
     try:
         response = await asyncio.to_thread(llm.invoke, messages)
-
+        typing_task.cancel()
         await update.message.reply_text(response.content)
 
     except Exception as e:
+        typing_task.cancel()
         logging.error(f"Error: {e}")
         await update.message.reply_text("⚠️ Something went wrong.")
-
 
 telegram_app.add_handler(CommandHandler("start", start))
 telegram_app.add_handler(
     MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
 )
-
 
 @app.post("/webhook")
 async def webhook(req: Request):
@@ -89,7 +98,6 @@ async def webhook(req: Request):
     await telegram_app.process_update(update)
 
     return {"ok": True}
-
 
 @app.on_event("startup")
 async def on_startup():
