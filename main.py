@@ -51,7 +51,7 @@ async def show_typing(chat):
     try:
         while True:
             await chat.send_action(action=ChatAction.TYPING)
-            await asyncio.sleep(4)
+            await asyncio.sleep(2)
     except asyncio.CancelledError:
         pass
 
