@@ -84,7 +84,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         response = await task
 
-        await update.message.reply_text(response.content)
+        await update.message.reply_text(
+            response.content,
+            parse_mode="MarkdownV2"
+        )
 
     except Exception as e:
         logging.error(f"Error: {e}")
