@@ -75,6 +75,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     import re
 
     def format_response(text):
+        text = re.sub(r"### (.*)", r"<b>\1</b>\n", text)
         text = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", text)
         text = re.sub(r"\*(.*?)\*", r"<i>\1</i>", text)
         return text
