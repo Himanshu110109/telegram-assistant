@@ -47,14 +47,6 @@ app = FastAPI()
 
 telegram_app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
-async def show_typing(chat):
-    try:
-        while True:
-            await chat.send_action(action=ChatAction.TYPING)
-            await asyncio.sleep(2)
-    except asyncio.CancelledError:
-        pass
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👋 Hey! I'm Neuralix 🤖\nI am here to assist you with any query!"
@@ -71,15 +63,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         HumanMessage(content=user_text),
     ]
 
-    typing_task = asyncio.create_task(show_typing(update.message.chat))
-
     try:
-        response = await asyncio.to_thread(llm.invoke, messages)
-        typing_task.cancel()
+        async def run_llm():
+            return await asyncio.to_thread(llm.invoke, messages)
+
+        task = asyncio.create_task(run_llm())
+
+        while not task.done():
+            await update.message.chat.send_action(action=ChatAction.TYPING)
+            await asyncio.sleep(2)
+
+        response = await task
+
         await update.message.reply_text(response.content)
 
     except Exception as e:
-        typing_task.cancel()
         logging.error(f"Error: {e}")
         await update.message.reply_text("⚠️ Something went wrong.")
 
