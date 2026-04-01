@@ -72,6 +72,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         HumanMessage(content=user_text),
     ]
 
+    import re
+
+    def format_response(text):
+        text = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", text)
+        text = re.sub(r"\*(.*?)\*", r"<i>\1</i>", text)
+        return text
+
     try:
         async def run_llm():
             return await asyncio.to_thread(llm.invoke, messages)
@@ -83,10 +90,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await asyncio.sleep(2)
 
         response = await task
+        formatted_text = format_response(response.content)
 
         await update.message.reply_text(
-            response.content,
-            parse_mode="MarkdownV2"
+            formatted_text,
+            parse_mode="HTML"
         )
 
     except Exception as e:
