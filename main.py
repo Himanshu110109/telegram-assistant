@@ -62,17 +62,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message or not update.message.text:
+
+    msg = update.message or update.business_message
+
+    if not msg or not msg.text:
         return
 
-    user_text = update.message.text
+    user_text = msg.text
 
     messages = [
         SystemMessage(content=SYSTEM_PROMPT),
         HumanMessage(content=user_text),
     ]
-
-    import re
 
     try:
         async def run_llm():
@@ -81,16 +82,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         task = asyncio.create_task(run_llm())
 
         while not task.done():
-            await update.message.chat.send_action(action=ChatAction.TYPING)
+            await msg.chat.send_action(action=ChatAction.TYPING)
             await asyncio.sleep(2)
 
         response = await task
 
-        await update.message.reply_text(response.content)
+        await msg.reply_text(response.content)
 
     except Exception as e:
         logging.error(f"Error: {e}")
-        await update.message.reply_text("⚠️ Something went wrong.")
+        await msg.reply_text("⚠️ Something went wrong.")
 
 telegram_app.add_handler(CommandHandler("start", start))
 telegram_app.add_handler(
@@ -114,7 +115,15 @@ async def on_startup():
 
     await telegram_app.initialize()
     await telegram_app.start()
-    await telegram_app.bot.set_webhook(webhook_url)
+    await telegram_app.bot.set_webhook(
+    webhook_url,
+    allowed_updates=[
+        "message",
+        "business_message",
+        "edited_business_message",
+        "business_connection"
+    ]
+)
 
     logging.info(f"Webhook set to: {webhook_url}")
 
