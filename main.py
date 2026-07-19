@@ -26,7 +26,7 @@ if not TELEGRAM_BOT_TOKEN or not GROQ_API_KEY or not RENDER_URL:
     raise ValueError("Missing environment variables!")
 
 llm = ChatGroq(
-    model="gpt-oss-20b",
+    model="openai/gpt-oss-20b",
     api_key=GROQ_API_KEY,
 )
 
